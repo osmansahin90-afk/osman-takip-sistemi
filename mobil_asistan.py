@@ -85,10 +85,26 @@ with tab2:
             for i, ogrenci in enumerate(ogrenciler):
                 col_s1, col_s2 = st.columns([4, 1])
                 col_s1.write(f"👤 {ogrenci['ogrenci']} ({ogrenci['ucret']} TL)")
+                # --- SİLME İŞLEMİ GÜNCELLENDİ ---
                 if col_s2.button("🗑️ Sil", key=f"del_{gun}_{i}"):
-                    sabit[gun].pop(i) # Listeden çıkar
+                    silinecek_ad = ogrenci['ogrenci']
+                    
+                    # 1. Sabit Programdan Sil
+                    sabit[gun].pop(i)
+                    
+                    # 2. Arşivdeki ÖDENMEMİŞ kayıtları da temizle (Rakamın düzelmesi için)
+                    for tarih in list(arsiv.keys()):
+                        if silinecek_ad in arsiv[tarih]:
+                            # Eğer ders ödenmediyse, öğrenciyi sildiğimiz için borcu da siliyoruz
+                            if not arsiv[tarih][silinecek_ad].get('odendi', False):
+                                del arsiv[tarih][silinecek_ad]
+                        
+                        # Eğer o tarihte hiç öğrenci kalmadıysa tarihi komple sil
+                        if not arsiv[tarih]:
+                            del arsiv[tarih]
+                    
                     buluta_gonder(veri)
-                    st.warning(f"{ogrenci['ogrenci']} silindi!")
+                    st.warning(f"{silinecek_ad} ve ödenmemiş borçları silindi!")
                     st.rerun()
 
 with tab3:
@@ -98,3 +114,4 @@ with tab3:
         for ad, detay in ogrenciler.items():
             if not detay.get('odendi', False):
                 st.write(f"📅 {t} - 👤 {ad}: {detay['ucret']} TL")
+
