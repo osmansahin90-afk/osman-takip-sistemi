@@ -20,35 +20,41 @@ def buluta_gonder(veri):
         return False
 
 st.set_page_config(page_title="Osman Şahin Panel", layout="wide")
-st.title("📱 Yönetim Paneli")
+st.title("📱 Matematik Öğretmeni Osman Şahin")
 
-# Veriyi Başlat
-if 'v' not in st.session_state:
-    st.session_state.v = verileri_cek()
+# Veriyi bir kez çek ve session_state'e kilitle
+if 'ana_veri' not in st.session_state:
+    st.session_state.ana_veri = verileri_cek()
 
-v = st.session_state.v
+# Kısa yollar
+v = st.session_state.ana_veri
 if not v: v = {"sabit": {}, "arsiv": {}}
 sabit = v.get("sabit", {})
 arsiv = v.get("arsiv", {})
 
-# SEKMELER
-t1, t2, t3 = st.tabs(["📅 Takip", "➕ Ekle/Sil", "💰 Alacak"])
+t1, t2, t3 = st.tabs(["📅 Ders Takibi", "➕ Öğrenci Yönetimi", "💰 Alacak Durumu"])
 
 with t1:
-    st.info("Tikleri atın ve en alttaki KAYDET butonuna basın.")
-    secilen_tarih = st.date_input("Tarih", date.today())
-    gun_adi = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"][secilen_tarih.weekday()]
-    t_key = secilen_tarih.strftime("%d-%m-%Y")
+    st.info("İstediğiniz tarihlere tik atın ve en alttaki KAYDET butonuna basın.")
+    sec_tarih = st.date_input("Takvim", date.today())
+    gun_adi = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"][sec_tarih.weekday()]
+    t_key = sec_tarih.strftime("%d-%m-%Y")
 
     if gun_adi in sabit:
-        for i, ogrenci in enumerate(sabit[gun_adi]):
-            ad, ucret = ogrenci['ogrenci'], ogrenci['ucret']
+        st.write(f"### {gun_adi} Programı")
+        for i, ogr in enumerate(sabit[gun_adi]):
+            ad = ogr['ogrenci']
+            ucret = ogr['ucret']
+            
+            # Bu tarihte bu öğrenci önceden işaretlenmiş mi?
             is_checked = t_key in arsiv and ad in arsiv[t_key]
             
-            # Seçim kutusu
-            val = st.checkbox(f"{ad} ({ucret} TL)", value=is_checked, key=f"c_{t_key}_{i}")
+            # KRİTİK DÜZELTME: key kısmına t_key ekleyerek tarihi sabitledik
+            check_key = f"cb_{t_key}_{ad}_{i}"
             
-            # Değişikliği anında hafızaya işle
+            val = st.checkbox(f"{ad} ({ucret} TL)", value=is_checked, key=check_key)
+            
+            # Değişikliği anında yerel hafızaya (session_state) yaz
             if val != is_checked:
                 if val:
                     if t_key not in arsiv: arsiv[t_key] = {}
@@ -58,31 +64,32 @@ with t1:
                         del arsiv[t_key][ad]
         
         st.divider()
-        # KAYDET BUTONU (Bu sefer t1 içinde en altta)
-        if st.button("💾 DEĞİŞİKLİKLERİ BULUTA YAZ", type="primary"):
-            if buluta_gonder(st.session_state.v):
-                st.success("Kaydedildi!")
+        if st.button("💾 TÜM GÜNLERİ VE TİKLERİ KAYDET", type="primary", use_container_width=True):
+            if buluta_gonder(st.session_state.ana_veri):
+                st.success("Tüm seçimleriniz başarıyla buluta gönderildi!")
             else:
-                st.error("Hata!")
+                st.error("Kayıt başarısız! İnterneti kontrol edin.")
     else:
-        st.write("Ders yok.")
+        st.write("Bu güne ait ders tanımlanmamış.")
 
 with t2:
-    st.subheader("Öğrenci Yönetimi")
-    y_ad = st.text_input("Ad")
+    st.subheader("Öğrenci Ekle / Sil")
+    y_ad = st.text_input("Öğrenci Adı")
     y_gun = st.selectbox("Gün", ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"])
     y_u = st.number_input("Ücret", value=2000)
-    if st.button("Ekle"):
-        t_ad = y_ad.replace(".", "").strip()
-        if y_gun not in sabit: sabit[y_gun] = []
-        sabit[y_gun].append({"ogrenci": t_ad, "ucret": y_u})
-        buluta_gonder(st.session_state.v)
-        st.rerun()
+    if st.button("Sisteme Kaydet"):
+        if y_ad:
+            t_ad = y_ad.replace(".", "").strip()
+            if y_gun not in sabit: sabit[y_gun] = []
+            sabit[y_gun].append({"ogrenci": t_ad, "ucret": y_u})
+            if buluta_gonder(st.session_state.ana_veri):
+                st.success("Yeni öğrenci eklendi.")
+                st.rerun()
 
 with t3:
-    st.subheader("Alacaklar")
-    if st.button("🔄 Yenile"):
-        st.session_state.v = verileri_cek()
+    st.subheader("Alacak Listesi")
+    if st.button("🔄 Verileri Yenile"):
+        st.session_state.ana_veri = verileri_cek()
         st.rerun()
     
     toplam = 0
@@ -91,9 +98,10 @@ with t3:
             for ad in list(arsiv[t].keys()):
                 if not arsiv[t][ad].get('odendi', False):
                     toplam += arsiv[t][ad]['ucret']
-                    st.write(f"{t} - {ad}")
-                    if st.button(f"Öde {ad}", key=f"p_{t}_{ad}"):
+                    c1, c2 = st.columns([3, 1])
+                    c1.write(f"📅 {t} - {ad}")
+                    if c2.button("💰 Öde", key=f"p_{t}_{ad}"):
                         arsiv[t][ad]['odendi'] = True
-                        buluta_gonder(st.session_state.v)
+                        buluta_gonder(st.session_state.ana_veri)
                         st.rerun()
-    st.metric("Toplam", f"{toplam} TL")
+    st.metric("Bekleyen Toplam", f"{toplam:,.2f} TL")
