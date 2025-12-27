@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 from datetime import datetime, date
-import calendar
 
 # --- AYARLAR ---
 FIREBASE_URL = "https://osmansahintakip-default-rtdb.europe-west1.firebasedatabase.app/.json"
@@ -21,8 +20,8 @@ veri = verileri_cek()
 sabit = veri.get("sabit", {})
 arsiv = veri.get("arsiv", {})
 
-# --- 1. SEKMELİ YAPI ---
-tab1, tab2, tab3 = st.tabs(["📅 Günlük Takip", "➕ Öğrenci Ekle", "💰 Alacak Durumu"])
+# --- SEKMELİ YAPI ---
+tab1, tab2, tab3 = st.tabs(["📅 Günlük Takip", "➕ Öğrenci Yönetimi", "💰 Alacak Durumu"])
 
 with tab1:
     st.subheader("Bugünkü Dersleriniz")
@@ -34,8 +33,6 @@ with tab1:
         for ogrenci in sabit[gun_adi]:
             ad = ogrenci['ogrenci']
             ucret = ogrenci['ucret']
-            
-            # Arşiv kontrolü
             is_checked = t_key in arsiv and ad in arsiv[t_key]
             is_paid = is_checked and arsiv[t_key][ad].get('odendi', False)
             
@@ -53,9 +50,7 @@ with tab1:
                         del arsiv[t_key][ad]
                         buluta_gonder(veri)
                         st.rerun()
-            
             with col2:
-                # ÖDEME ALMA
                 if is_checked and not is_paid:
                     if st.button("💰 Ödeme", key=f"btn_{t_key}_{ad}"):
                         arsiv[t_key][ad]['odendi'] = True
@@ -67,25 +62,38 @@ with tab1:
         st.info(f"{gun_adi} günü için kayıtlı ders yok.")
 
 with tab2:
-    st.subheader("Yeni Öğrenci/Ders Ekle")
-    yeni_gun = st.selectbox("Gün", ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"])
-    yeni_ad = st.text_input("Öğrenci Adı")
-    yeni_ucret = st.number_input("Ders Ücreti", min_value=0, value=2000)
+    st.subheader("Yeni Öğrenci Ekle")
+    col_e1, col_e2, col_e3 = st.columns(3)
+    yeni_gun = col_e1.selectbox("Gün", ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"])
+    yeni_ad = col_e2.text_input("Öğrenci Adı")
+    yeni_ucret = col_e3.number_input("Ücret", min_value=0, value=2000)
     
-    if st.button("Sisteme Kaydet"):
+    if st.button("➕ Listeye Ekle"):
         if yeni_ad:
             if yeni_gun not in sabit: sabit[yeni_gun] = []
             sabit[yeni_gun].append({"ogrenci": yeni_ad, "ucret": yeni_ucret})
             buluta_gonder(veri)
-            st.success(f"{yeni_ad} başarıyla eklendi!")
+            st.success(f"{yeni_ad} eklendi!")
             st.rerun()
 
+    st.divider()
+    st.subheader("📋 Kayıtlı Öğrencileri Sil")
+    # Mevcut öğrencileri listeleyelim
+    for gun, ogrenciler in sabit.items():
+        if ogrenciler:
+            st.write(f"**{gun}**")
+            for i, ogrenci in enumerate(ogrenciler):
+                col_s1, col_s2 = st.columns([4, 1])
+                col_s1.write(f"👤 {ogrenci['ogrenci']} ({ogrenci['ucret']} TL)")
+                if col_s2.button("🗑️ Sil", key=f"del_{gun}_{i}"):
+                    sabit[gun].pop(i) # Listeden çıkar
+                    buluta_gonder(veri)
+                    st.warning(f"{ogrenci['ogrenci']} silindi!")
+                    st.rerun()
+
 with tab3:
-    # Toplam Alacak Hesaplama
     toplam = sum(d['ucret'] for t in arsiv for d in arsiv[t].values() if not d.get('odendi', False))
     st.metric("Bekleyen Toplam Alacak", f"{toplam:,.2f} TL")
-    
-    # Detaylı Liste
     for t, ogrenciler in arsiv.items():
         for ad, detay in ogrenciler.items():
             if not detay.get('odendi', False):
