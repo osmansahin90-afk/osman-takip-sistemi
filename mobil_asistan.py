@@ -48,20 +48,21 @@ if veri:
     sabit = veri.get("sabit", {})
     arsiv = veri.get("arsiv", {})
 
-    toplam_alacak = 0
-    
-    # Bugünün ay ve yılını alalım (Örn: "12/2025")
-    su_an = datetime.now()
-    bu_ay_yil = su_an.strftime("/%m/%Y") # Bilgisayardaki formatla uyumlu hale getirdik
+    # --- MOBİL ALACAK HESAPLAMA (TİRELİ SİSTEM) ---
+toplam_alacak = 0
+su_an = datetime.now()
+# Bilgisayardaki yeni formata göre (Örn: "-12-2025")
+bu_ay_yil = su_an.strftime("-%m-%Y") 
 
+if arsiv:
     for tarih, ogrenciler in arsiv.items():
-        # Eğer tarih bu ay ve yıla aitse (Örn: 27/12/2025 içinde /12/2025 var mı?)
+        # Eğer tarihin içinde içinde bulunduğumuz ay/yıl varsa
         if bu_ay_yil in tarih:
             for ad, detay in ogrenciler.items():
                 if not detay.get('odendi', False):
                     toplam_alacak += detay.get('ucret', 0)
 
-    st.metric("Beklenen Alacak (Bu Ay)", f"{toplam_alacak:,.2f} TL")
+st.metric("Bu Ay Beklenen Toplam Alacak", f"{toplam_alacak:,.2f} TL")
     
     # Detaylı Liste
     if toplam_alacak > 0:
@@ -105,5 +106,6 @@ if veli_bazli_alacak:
     st.subheader("📝 Bekleyen Ödemeler")
 
     st.table(pd.DataFrame(list(veli_bazli_alacak.items()), columns=['Öğrenci Adı', 'Kalan Tutar (TL)']))
+
 
 
