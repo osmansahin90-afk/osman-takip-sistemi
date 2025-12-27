@@ -28,21 +28,19 @@ except Exception as e:
     st.error(f"Bağlantı Hatası: {e}")
     st.stop()
 
-# --- ANALİZ VE HESAPLAMALAR ---
+# --- ANALİZ VE HESAPLAMALAR (GÜNCEL) ---
 toplam_alacak = 0
 veli_bazli_alacak = {}
 
-# Bugünün ay ve yıl bilgisini alalım (Örn: "12-2025")
+# Bugünün ay ve yılını al (Örn: "12/2025")
 su_an = datetime.now()
-bu_ay = su_an.strftime("%m")
-bu_yil = su_an.strftime("%Y")
+hedef_donem = su_an.strftime("/%m/%Y") # Eğik çizgi ile arama yapar
 
 for tarih, dersler in arsiv.items():
-    # Tarih formatı ne olursa olsun (01-12-2025 veya 2025-12-01) içinde Ay ve Yıl var mı?
-    if bu_ay in tarih and bu_yil in tarih:
+    # Eğer kayıtlı tarih bugün içinde bulunduğumuz ay/yıla aitse
+    if hedef_donem in tarih:
         if isinstance(dersler, dict):
             for ogrenci, detay in dersler.items():
-                # Ödenmedi olarak işaretlenenleri topla
                 if not detay.get('odendi', False):
                     ucret = detay.get('ucret', 0)
                     toplam_alacak += ucret
@@ -81,3 +79,4 @@ if veli_bazli_alacak:
     st.subheader("📝 Bekleyen Ödemeler")
 
     st.table(pd.DataFrame(list(veli_bazli_alacak.items()), columns=['Öğrenci Adı', 'Kalan Tutar (TL)']))
+
