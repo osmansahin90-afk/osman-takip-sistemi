@@ -31,12 +31,18 @@ except Exception as e:
 # --- ANALİZ VE HESAPLAMALAR ---
 toplam_alacak = 0
 veli_bazli_alacak = {}
-su_an_ay_yil = datetime.now().strftime("-%m-%Y") # Yeni formatımız: -MM-YYYY
+
+# Bugünün ay ve yıl bilgisini alalım (Örn: "12-2025")
+su_an = datetime.now()
+bu_ay = su_an.strftime("%m")
+bu_yil = su_an.strftime("%Y")
 
 for tarih, dersler in arsiv.items():
-    if su_an_ay_yil in tarih:
+    # Tarih formatı ne olursa olsun (01-12-2025 veya 2025-12-01) içinde Ay ve Yıl var mı?
+    if bu_ay in tarih and bu_yil in tarih:
         if isinstance(dersler, dict):
             for ogrenci, detay in dersler.items():
+                # Ödenmedi olarak işaretlenenleri topla
                 if not detay.get('odendi', False):
                     ucret = detay.get('ucret', 0)
                     toplam_alacak += ucret
@@ -73,4 +79,5 @@ with col2:
 st.divider()
 if veli_bazli_alacak:
     st.subheader("📝 Bekleyen Ödemeler")
+
     st.table(pd.DataFrame(list(veli_bazli_alacak.items()), columns=['Öğrenci Adı', 'Kalan Tutar (TL)']))
