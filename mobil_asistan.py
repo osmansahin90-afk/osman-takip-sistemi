@@ -28,23 +28,49 @@ except Exception as e:
     st.error(f"Bağlantı Hatası: {e}")
     st.stop()
 
-# --- ANALİZ VE HESAPLAMALAR (GÜNCEL) ---
-toplam_alacak = 0
-veli_bazli_alacak = {}
+import streamlit as st
+import requests
+from datetime import datetime
 
-# Bugünün ay ve yılını al (Örn: "12/2025")
-su_an = datetime.now()
-hedef_donem = su_an.strftime("/%m/%Y") # Eğik çizgi ile arama yapar
+# Firebase Ayarları
+FIREBASE_URL = "https://osmansahintakip-default-rtdb.europe-west1.firebasedatabase.app/.json"
 
-for tarih, dersler in arsiv.items():
-    # Eğer kayıtlı tarih bugün içinde bulunduğumuz ay/yıla aitse
-    if hedef_donem in tarih:
-        if isinstance(dersler, dict):
-            for ogrenci, detay in dersler.items():
+def verileri_cek():
+    try:
+        cevap = requests.get(FIREBASE_URL)
+        return cevap.json()
+    except:
+        return None
+
+veri = verileri_cek()
+
+if veri:
+    sabit = veri.get("sabit", {})
+    arsiv = veri.get("arsiv", {})
+
+    toplam_alacak = 0
+    
+    # Bugünün ay ve yılını alalım (Örn: "12/2025")
+    su_an = datetime.now()
+    bu_ay_yil = su_an.strftime("/%m/%Y") # Bilgisayardaki formatla uyumlu hale getirdik
+
+    for tarih, ogrenciler in arsiv.items():
+        # Eğer tarih bu ay ve yıla aitse (Örn: 27/12/2025 içinde /12/2025 var mı?)
+        if bu_ay_yil in tarih:
+            for ad, detay in ogrenciler.items():
                 if not detay.get('odendi', False):
-                    ucret = detay.get('ucret', 0)
-                    toplam_alacak += ucret
-                    veli_bazli_alacak[ogrenci] = veli_bazli_alacak.get(ogrenci, 0) + ucret
+                    toplam_alacak += detay.get('ucret', 0)
+
+    st.metric("Beklenen Alacak (Bu Ay)", f"{toplam_alacak:,.2f} TL")
+    
+    # Detaylı Liste
+    if toplam_alacak > 0:
+        st.subheader("Ödeme Bekleyenler")
+        for tarih, ogrenciler in arsiv.items():
+            if bu_ay_yil in tarih:
+                for ad, detay in ogrenciler.items():
+                    if not detay.get('odendi', False):
+                        st.write(f"📅 {tarih} - 👤 {ad}: {detay.get('ucret')} TL")
 
 # --- GÖRSELLEŞTİRME ---
 col1, col2 = st.columns([1, 1])
@@ -79,4 +105,5 @@ if veli_bazli_alacak:
     st.subheader("📝 Bekleyen Ödemeler")
 
     st.table(pd.DataFrame(list(veli_bazli_alacak.items()), columns=['Öğrenci Adı', 'Kalan Tutar (TL)']))
+
 
